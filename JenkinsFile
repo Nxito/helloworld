@@ -1,0 +1,37 @@
+pipeline{
+    agent any
+    stages{
+        stage("Hello"){
+            steps{
+                echo "Hello World"
+            }
+        }
+        stage("Get Code"){
+            steps{
+                echo "[Get Code] Obteniendo codigo de github..."
+                git "https://github.com/Nxito/helloworld.git"
+                sh "ls -a" 
+                echo "$WORKSPACE"
+            }
+        }
+        stage('Build') {
+            steps {
+                echo '[Build] Actualmente no requiere una Build'
+                sh "ls -a" 
+                echo "$WORKSPACE"
+            }
+        }
+        stage('Unit') {
+            environment {
+                PYTHONPATH = "${WORKSPACE}"
+            }
+            steps {
+                echo '[Unit Testing] Inicio los test unitarios ubicados en ./test'
+                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                    sh 'pytest --junitxml=result-unit.xml test/unit'
+                    junit 'result-unit.xml'
+                }
+            }
+        }
+    }
+}
