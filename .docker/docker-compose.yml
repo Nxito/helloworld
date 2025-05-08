@@ -13,7 +13,8 @@ services:
     networks:
       - jenkins
   jenkins-agent-1:
-    image: jenkins/ssh-agent:jdk17
+    build:
+      context: ./apps/jenkins-agent
     container_name: jenkins-agent-1
     restart: always
     environment:
@@ -22,9 +23,10 @@ services:
       - jenkins-controller
     networks:
       - jenkins
-
+ 
   jenkins-agent-2:
-    image: jenkins/ssh-agent:jdk17
+    build:
+      context: ./apps/jenkins-agent
     container_name: jenkins-agent-2
     restart: always
     environment:

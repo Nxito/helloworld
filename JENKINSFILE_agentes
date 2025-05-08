@@ -1,0 +1,101 @@
+pipeline {
+    agent none
+    stages {
+        stage('Hello') {
+            agent any
+            steps {
+                echo 'Hello World'
+                sh 'whoami && hostname && echo ${WORKSPACE}'
+            }
+        }
+        stage('Get Code') {
+            agent { label 'builder' }
+            steps {
+                echo '[Get Code] Obteniendo código de GitHub...'
+                sh 'whoami && hostname && echo ${WORKSPACE}'
+                git 'https://github.com/Nxito/helloworld.git'
+                sh 'ls -a'
+                echo "$WORKSPACE"
+                stash name: 'my-code'
+            }
+        }
+        stage('Build') {
+            agent { label 'builder' }
+            steps {
+                unstash name: 'my-code'
+                sh 'whoami && hostname && echo ${WORKSPACE}'
+                echo '[Build] Actualmente no requiere una Build'
+            }
+        }
+        stage('Testing Parallel') {
+            parallel {
+                stage('Service') {
+                    agent { label 'tester' }
+                    environment {
+                        PYTHONPATH = "${WORKSPACE}"
+                    }
+                    steps {
+                        echo '[Iniciar Flask]'
+                        unstash name: 'my-code'
+                        sh 'whoami && hostname && echo ${WORKSPACE}'
+                        sh '''
+                            flask run --host=127.0.0.1 --port=5000 > flask.log 2>&1 &
+
+                            for i in {1..15}; do
+                                if curl --silent --fail http://127.0.0.1:5000 > /dev/null; then
+                                    echo "Flask está disponible"
+                                    break
+                                fi
+                                echo "Flask no está listo, reintentando..."
+                                sleep 3
+                            done
+
+                            if curl --silent --fail http://wiremock:8080/__admin > /dev/null; then
+                                echo "WireMock está disponible"
+                            else
+                                echo "No se pudo conectar a WireMock en http://wiremock:8080"
+                                exit 1
+                            fi
+                        '''
+                    }
+                }
+                stage('Unit') {
+                    agent { label 'tester' }
+                    environment {
+                        PYTHONPATH = "${WORKSPACE}"
+                    }
+                    steps {
+                        echo '[Unit Testing] Inicio los test unitarios ubicados en ./test'
+                        unstash name: 'my-code'
+                        sh 'whoami && hostname && echo ${WORKSPACE}'
+                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                            sh 'pytest --junitxml=result-unit.xml test/unit'
+                            junit 'result-unit.xml'
+                        }
+                    }
+                }
+            }
+        }
+        stage('Results') {
+            agent { label 'tester' }
+            steps {
+                unstash name: 'my-code'
+                sh 'whoami && hostname && echo ${WORKSPACE}'
+                junit 'result-*.xml'
+            }
+        }
+    }
+    post {
+        always { 
+            node('tester') {
+                sh 'whoami && hostname && echo ${WORKSPACE}'
+                junit 'result-*.xml'
+                echo 'Pipeline completado con éxito'
+                cleanWs()
+            }
+        }
+        failure {
+            echo 'Pipeline fallido'
+        }
+    }
+}
