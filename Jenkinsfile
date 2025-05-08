@@ -12,32 +12,23 @@ pipeline {
                 git 'https://github.com/Nxito/helloworld.git'
                 sh 'ls -a'
                 echo "$WORKSPACE"
+                stash name: my-code
             }
         }
         stage('Build') {
             steps {
+                unstash name: my-code
                 echo '[Build] Actualmente no requiere una Build'
             }
         }
         stage('Testing Parallel') {
             parallel {
-                stage('Unit') {
-                    environment {
-                        PYTHONPATH = "${WORKSPACE}"
-                    }
-                    steps {
-                        echo '[Unit Testing] Inicio los test unitarios ubicados en ./test'
-                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                            sh 'pytest --junitxml=result-unit.xml test/unit'
-                            junit 'result-unit.xml'
-                        }
-                    }
-                }
                 stage('Service') {
                     environment {
                         PYTHONPATH = "${WORKSPACE}"
                     }
                     steps {
+                        unstash name: my-code
                         echo '[Iniciar Flask]'
                         sh '''
                             flask run --host=127.0.0.1 --port=5000 > flask.log 2>&1 &
@@ -60,6 +51,20 @@ pipeline {
                         '''
                     }
                 }
+                stage('Unit') {
+                    environment {
+                        PYTHONPATH = "${WORKSPACE}"
+                    }
+                    steps {
+                        unstash name: my-code
+                        echo '[Unit Testing] Inicio los test unitarios ubicados en ./test'
+                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                            sh 'pytest --junitxml=result-unit.xml test/unit'
+                            junit 'result-unit.xml'
+                        }
+                    }
+                }
+                
             }
         }
         stage('Results') {
