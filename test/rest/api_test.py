@@ -6,7 +6,7 @@ from urllib.request import urlopen
 import pytest
 
 BASE_URL = "http://127.0.0.1:5000"
-BASE_URL_MOCK = "http://127.0.0.1:8080"
+BASE_URL_MOCK = "http://wiremock:8080"
 DEFAULT_TIMEOUT = 2  # in secs
 
 @pytest.mark.api
