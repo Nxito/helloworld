@@ -43,7 +43,7 @@ services:
     networks:
       - jenkins
     volumes:
-      - ./wiremock:/home/wiremock
+      - ../test/wiremock:/home/wiremock
 volumes:
   jenkins_home:
 
