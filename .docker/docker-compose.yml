@@ -42,6 +42,8 @@ services:
     entrypoint: ["/docker-entrypoint.sh", "--global-response-templating", "--disable-gzip", "--verbose"]
     networks:
       - jenkins
+    volumes:
+      - ./wiremock:/home/wiremock
 volumes:
   jenkins_home:
 

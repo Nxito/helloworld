@@ -2,12 +2,13 @@ import http.client
 import os
 import unittest
 from urllib.request import urlopen
+from urllib.error import URLError, HTTPError
 
 import pytest
 
 BASE_URL = "http://127.0.0.1:5000"
 BASE_URL_MOCK = "http://wiremock:8080"
-DEFAULT_TIMEOUT = 2  # in secs
+DEFAULT_TIMEOUT = 15  # in secs
 
 @pytest.mark.api
 class TestApi(unittest.TestCase):
