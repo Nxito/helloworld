@@ -39,7 +39,7 @@ pipeline {
                         unstash name: 'my-code'
                         sh 'whoami && hostname && echo ${WORKSPACE}'
                         catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                            sh 'pytest --junitxml=result-unit.xml test/unit'
+                            sh 'pytest -m unit --junitxml=result-unit.xml test/unit'
                             junit 'result-unit.xml'
                         }
                     }
@@ -73,7 +73,7 @@ pipeline {
                                 exit 1
                             fi
                             # Aqui pongo las pruebas del api rest
-                            pytest --junitxml=result-rest.xml test/rest
+                            pytest -m api  --junitxml=result-rest.xml test/rest
                             kill $FLASK_PID
                         '''
                         junit 'result-rest.xml'
