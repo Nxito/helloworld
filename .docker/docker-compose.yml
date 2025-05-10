@@ -35,13 +35,24 @@ services:
       - jenkins-controller
     networks:
       - jenkins
+    deploy:
+      resources:
+        limits:
+            cpus: '1.0' 
+            memory: 2G 
+        reservations:
+          cpus: '0.5'
+          memory: 1G 
 # https://wiremock.org/docs/standalone/docker/
   wiremock:
     image: "wiremock/wiremock:latest"
+    restart: always
     container_name: wiremock
     entrypoint: ["/docker-entrypoint.sh", "--global-response-templating", "--disable-gzip", "--verbose"]
     networks:
       - jenkins
+    volumes:
+      - ../test/wiremock:/home/wiremock # aun que deberia ser mas bien un Copy en un dockerfile
 volumes:
   jenkins_home:
 

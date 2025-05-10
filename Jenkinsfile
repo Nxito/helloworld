@@ -21,33 +21,6 @@ pipeline {
         }
         stage('Testing Parallel') {
             parallel {
-                stage('Service') {
-                    environment {
-                        PYTHONPATH = "${WORKSPACE}"
-                    }
-                    steps {
-                        echo '[Iniciar Flask]'
-                        sh '''
-                            flask run --host=127.0.0.1 --port=5000 > flask.log 2>&1 &
-
-                            for i in {1..15}; do
-                                if curl --silent --fail http://127.0.0.1:5000 > /dev/null; then
-                                    echo "Flask está disponible"
-                                    break
-                                fi
-                               echo "Flask no está listo, reintentando..."
-                               sleep 3
-                            done
-
-                            if curl --silent --fail http://wiremock:8080/__admin > /dev/null; then
-                            echo "WireMock está disponible"
-                            else
-                                echo "No se pudo conectar a WireMock en http://wiremock:8080"
-                                exit 1
-                            fi
-                        '''
-                    }
-                }
                 stage('Unit') {
                     environment {
                         PYTHONPATH = "${WORKSPACE}"
@@ -60,7 +33,34 @@ pipeline {
                         }
                     }
                 }
-                
+                stage('Service') {
+                    environment {
+                        PYTHONPATH = "${WORKSPACE}"
+                        FLASK_APP = 'app/api.py'
+                    }
+                    steps {
+                        echo '[Iniciar Flask]'
+                        sh '''
+                            flask run --host=127.0.0.1 --port=5000 > flask.log 2>&1 &
+                            FLASK_PID=$!
+                            for i in $(seq 1 10); do
+                                if curl --silent --fail http://127.0.0.1:5000 > /dev/null; then
+                                    echo "Flask está disponible"
+                                    break
+                                fi
+                                echo "Flask no está listo, reintentando..."
+                                sleep 2
+                            done
+
+                            if curl --silent --fail http://wiremock:8080/__admin > /dev/null; then
+                                echo "WireMock está disponible"
+                            else
+                                echo "No se pudo conectar a WireMock en http://wiremock:8080"
+                                exit 1
+                            fi
+                        '''
+                    }
+                }
             }
         }
         stage('Results') {
