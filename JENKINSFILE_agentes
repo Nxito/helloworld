@@ -33,13 +33,13 @@ pipeline {
                     agent { label 'tester' }
                     environment {
                         PYTHONPATH = "${WORKSPACE}"
+                        FLASK_APP = "app/api.py"
                     }
                     steps {
                         echo '[Iniciar Flask]'
                         unstash name: 'my-code'
                         sh 'whoami && hostname && echo ${WORKSPACE}'
                         sh '''
-                            export FLASK_APP=app/api.py
                             flask run --host=127.0.0.1 --port=5000 > flask.log 2>&1 &
                             FLASK_PID=$!
                             for i in $(seq 1 10); do

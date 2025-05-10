@@ -35,6 +35,14 @@ services:
       - jenkins-controller
     networks:
       - jenkins
+    deploy:
+      resources:
+        limits:
+            cpus: '1.0'         # Limitar el uso de CPU a 1 núcleo
+            memory: 2G          # Limitar el uso de memoria a 2 GB
+        reservations:
+          cpus: '0.5'         # Reservar medio núcleo de CPU para el contenedor
+          memory: 1G 
 # https://wiremock.org/docs/standalone/docker/
   wiremock:
     image: "wiremock/wiremock:latest"
