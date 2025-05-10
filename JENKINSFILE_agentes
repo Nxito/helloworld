@@ -12,8 +12,8 @@ pipeline {
             agent { label 'builder' }
             steps {
                 echo '[Get Code] Obteniendo código de GitHub...'
-                sh 'whoami && hostname && echo ${WORKSPACE}' 
-                git branch: 'develop', url: 'https://github.com/Nxito/helloworld.git'
+                sh 'whoami && hostname && echo ${WORKSPACE}'
+                git 'https://github.com/Nxito/helloworld.git'
                 sh 'ls -a'
                 echo "$WORKSPACE"
                 stash name: 'my-code'
@@ -29,41 +29,6 @@ pipeline {
         }
         stage('Testing Parallel') {
             parallel {
-                stage('Service') {
-                    agent { label 'tester' }
-                    environment {
-                        PYTHONPATH = "${WORKSPACE}"
-                        FLASK_APP = "app/api.py"
-                    }
-                    steps {
-                        echo '[Iniciar Flask]'
-                        unstash name: 'my-code'
-                        sh 'whoami && hostname && echo ${WORKSPACE}'
-                        sh '''
-                            flask run --host=127.0.0.1 --port=5000 > flask.log 2>&1 &
-                            FLASK_PID=$!
-                            for i in $(seq 1 10); do
-                                if curl --silent --fail http://127.0.0.1:5000 > /dev/null; then
-                                    echo "Flask está disponible"
-                                    break
-                                fi
-                                echo "Flask no está listo, reintentando..."
-                                sleep 2
-                            done
-
-                            if curl --silent --fail http://wiremock:8080/__admin > /dev/null; then
-                                echo "WireMock está disponible"
-                            else
-                                echo "No se pudo conectar a WireMock en http://wiremock:8080"
-                                exit 1
-                            fi
-                            # Aqui pongo las pruebas del api rest
-                            pytest --junitxml=result-rest.xml test/rest
-                            kill $FLASK_PID
-                        '''
-                        junit 'result-rest.xml'
-                    }
-                }
                 stage('Unit') {
                     agent { label 'tester' }
                     environment {
@@ -79,6 +44,43 @@ pipeline {
                         }
                     }
                 }
+                stage('Service') {
+                    agent { label 'tester' }
+                    environment {
+                        PYTHONPATH = "${WORKSPACE}"
+                        FLASK_APP = 'app/api.py'
+                    }
+                    steps {
+                        echo '[Iniciar Flask]'
+                        unstash name: 'my-code'
+                        sh 'whoami && hostname && echo ${WORKSPACE}'
+                        sh '''
+                            flask run --host=127.0.0.1 --port=5000 > flask.log 2>&1 &
+                            FLASK_PID=$!
+                            for i in $(seq 1 10); do
+                                if curl --silent --fail http://127.0.0.1:5000 > /dev/null; then
+                                    echo "Flask está disponible"
+                                    break
+                                fi
+                                echo "Flask no está listo, reintentando..."
+                                sleep 1
+                            done
+
+                            if curl --silent --fail http://wiremock:8080/__admin > /dev/null; then
+                                echo "WireMock está disponible"
+                            else
+                                echo "No se pudo conectar a WireMock en http://wiremock:8080"
+                                exit 1
+                            fi
+                            # Aqui pongo las pruebas del api rest
+                            pytest --junitxml=result-rest.xml test/rest
+                            kill $FLASK_PID
+                        '''
+                        junit 'result-rest.xml'
+                        
+                    }
+                }
+
             }
         }
         stage('Results') {
@@ -95,7 +97,7 @@ pipeline {
             node('tester') {
                 sh 'whoami && hostname && echo ${WORKSPACE}'
                 junit 'result-*.xml'
-                echo 'Fin'
+                echo 'Pipeline completado con éxito'
                 cleanWs()
             }
         }
