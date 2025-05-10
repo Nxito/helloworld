@@ -38,6 +38,7 @@ services:
 # https://wiremock.org/docs/standalone/docker/
   wiremock:
     image: "wiremock/wiremock:latest"
+    restart: always
     container_name: wiremock
     entrypoint: ["/docker-entrypoint.sh", "--global-response-templating", "--disable-gzip", "--verbose"]
     networks:
