@@ -58,7 +58,11 @@ pipeline {
                                 echo "No se pudo conectar a WireMock en http://wiremock:8080"
                                 exit 1
                             fi
+                            # Aqui pongo las pruebas del api rest
+                            pytest --junitxml=result-rest.xml test/rest
+                            kill $FLASK_PID
                         '''
+                        junit 'result-rest.xml'
                     }
                 }
             }
