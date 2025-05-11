@@ -13,7 +13,7 @@ pipeline {
             steps {
                 echo '[Get Code] Obteniendo código de GitHub...'
                 sh 'whoami && hostname && echo ${WORKSPACE}'
-                git 'https://github.com/Nxito/helloworld.git'
+                git branch: 'develop', url: 'https://github.com/Nxito/helloworld.git'
                 sh 'ls -a'
                 echo "$WORKSPACE"
                 stash name: 'my-code'
