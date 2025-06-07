@@ -6,7 +6,7 @@ pipeline {
             steps {
                 echo '[Get Code] Obteniendo código de GitHub...'
                 sh 'whoami && hostname && echo ${WORKSPACE}'
-                git branch: 'feature_fix_racecond', url: 'https://github.com/Nxito/helloworld.git'
+                git branch: 'master', url: 'https://github.com/Nxito/helloworld.git'
                 sh 'ls -a'
                 echo "$WORKSPACE"
                 stash name: 'my-code'
