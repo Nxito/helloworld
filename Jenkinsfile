@@ -68,7 +68,7 @@ pipeline {
                 }
             }
         }
-        stage('Coverage') {
+         stage('Coverage') {
                     agent { label 'tester' }
                     environment {
                         PYTHONPATH = "${WORKSPACE}"
@@ -129,7 +129,7 @@ pipeline {
             environment {
                         PYTHONPATH = "${WORKSPACE}"
                         FLASK_APP = 'app/api.py'
-            }
+                    }
             steps {
                 echo '[Iniciar Flask para Performance]'
                 unstash name: 'my-code'
@@ -147,11 +147,11 @@ pipeline {
                         echo "Flask no está listo, reintentando..."
                         sleep 2
                     done
-                    echo 'Inciando prueba de rendimiento con JMeter..'
-                    /opt/jmeter/bin/jmeter -n -t test/jmeter/flask.jmx -f -l test/jmeter/flask.jtl
-                    kill $FLASK_PID
+                     echo 'Inciando prueba de rendimiento con JMeter..'
+                     /opt/jmeter/bin/jmeter -n -t test/jmeter/flask.jmx -f -l test/jmeter/flask.jtl
+                     kill $FLASK_PID
                 '''
-                perfReport(sourceDataFiles: 'test/jmeter/flask.jtl')
+                perfReport (sourceDataFiles: 'test/jmeter/flask.jtl')
             }
         }
     }
