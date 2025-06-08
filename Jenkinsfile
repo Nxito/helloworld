@@ -152,6 +152,8 @@ pipeline {
                      kill $FLASK_PID
                 '''
                 perfReport (sourceDataFiles: 'test/jmeter/flask.jtl')
+                sh "sed -n '90p' test/jmeter/flask.jtl"
+
             }
         }
     }
