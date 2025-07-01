@@ -1,49 +1,51 @@
 pipeline {
-    agent any
+    agent none
     stages {
-        stage('Hello') {
-            steps {
-                echo 'Hello World'
-            }
-        }
         stage('Get Code') {
+            agent { label 'builder' }
             steps {
-                echo '[Get Code] Obteniendo codigo de github...'
-                git 'https://github.com/Nxito/helloworld.git'
+                echo '[Get Code] Obteniendo código de GitHub...'
+                sh 'whoami && hostname && echo ${WORKSPACE}'
+                git branch: 'feature_fix_racecond', url: 'https://github.com/Nxito/helloworld.git'
                 sh 'ls -a'
                 echo "$WORKSPACE"
+                stash name: 'my-code'
             }
         }
-        stage('Build') {
-            steps {
-                echo '[Build] Actualmente no requiere una Build'
-            }
-        }
+
         stage('Testing Parallel') {
             parallel {
                 stage('Unit') {
+                    agent { label 'tester' }
                     environment {
                         PYTHONPATH = "${WORKSPACE}"
                     }
                     steps {
                         echo '[Unit Testing] Inicio los test unitarios ubicados en ./test'
+                        unstash name: 'my-code'
+                        sh 'whoami && hostname && echo ${WORKSPACE}'
                         catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                            sh 'pytest --junitxml=result-unit.xml test/unit'
+                            sh 'python3 -m pytest --junitxml=result-unit.xml test/unit'
                             junit 'result-unit.xml'
                         }
                     }
                 }
                 stage('Service') {
+                    agent { label 'tester' }
                     environment {
                         PYTHONPATH = "${WORKSPACE}"
                         FLASK_APP = 'app/api.py'
                     }
                     steps {
                         echo '[Iniciar Flask]'
+                        unstash name: 'my-code'
+                        sh 'whoami && hostname && echo ${WORKSPACE}'
+
                         sh '''
                             flask run --host=127.0.0.1 --port=5000 > flask.log 2>&1 &
                             FLASK_PID=$!
-                            for i in $(seq 1 10); do
+                            trap "kill $FLASK_PID" EXIT
+                             for i in $(seq 1 10); do
                                 if curl --silent --fail http://127.0.0.1:5000 > /dev/null; then
                                     echo "Flask está disponible"
                                     break
@@ -51,7 +53,6 @@ pipeline {
                                 echo "Flask no está listo, reintentando..."
                                 sleep 2
                             done
-
                             if curl --silent --fail http://wiremock:8080/__admin > /dev/null; then
                                 echo "WireMock está disponible"
                             else
@@ -59,7 +60,7 @@ pipeline {
                                 exit 1
                             fi
                             # Aqui pongo las pruebas del api rest
-                            pytest --junitxml=result-rest.xml test/rest
+                            python3 -m pytest --junitxml=result-rest.xml test/rest
                             kill $FLASK_PID
                         '''
                         junit 'result-rest.xml'
@@ -67,10 +68,89 @@ pipeline {
                 }
             }
         }
-        stage('Results') {
+        stage('Results') {  
+            agent { label 'tester' }
             steps {
+                unstash name: 'my-code'
+                sh 'whoami && hostname && echo ${WORKSPACE}'
                 junit 'result-*.xml'
             }
+        }
+        stage('Coverage') {
+                    agent { label 'tester' }
+                    environment {
+                        PYTHONPATH = "${WORKSPACE}"
+                    }
+                    steps {
+                        echo '[Unit Testing] Inicio los test unitarios ubicados en ./test'
+                        unstash name: 'my-code'
+                        sh 'whoami && hostname && echo ${WORKSPACE}'
+                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                            sh '''
+                            python3 -m coverage run --branch --source=app  --omit=app/__init__.py,app/api.py -m pytest test/unit
+                            python3 -m coverage xml
+                            '''
+                            recordCoverage(tools: [[parser: 'COBERTURA', pattern: 'coverage.xml']],
+                                    qualityGates: [
+                                        [threshold: 99.0, metric: 'LINE', baseline: 'PROJECT', criticality: 'NOTE'],
+                                        [threshold: 60.0, metric: 'BRANCH', baseline: 'PROJECT', criticality: 'NOTE']
+                                    ]
+                                  )
+                        }
+                    }
+        }
+            stage('Static') {
+                agent { label 'tester' }
+                    environment {
+                        PYTHONPATH = "${WORKSPACE}"
+                    }
+                steps {
+                    sh 'python3 -m flake8 --exit-zero --format=pylint app > flake8.out'
+
+                    recordIssues(tools: [flake8(name: 'Flake8', pattern: 'flake8.out')],
+                    qualityGates: [
+                        [threshold: 8, type: 'TOTAL', unstable: true],
+                        [threshold: 10, type: 'TOTAL', failBuild: true]
+                    ])
+                }
+            }
+        stage('Security') {
+            agent { label 'tester' }
+                    environment {
+                        PYTHONPATH = "${WORKSPACE}"
+                    }
+            steps {
+                sh '''
+                    python3 -m bandit -r app -f custom -o bandit.out \
+                    --msg-template "{abspath}:{line}: {severity}: {test_id}: {msg}" || true
+                '''
+                recordIssues(tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')],
+                qualityGates: [
+                    [threshold: 2, type: 'TOTAL', unstable: true],
+                    [threshold: 4, type: 'TOTAL', failBuild: true]
+                ])
+            }
+        }
+        stage('Performance') {
+            agent { label 'tester' }
+            steps {
+                echo 'Inciando prueba de rendimiento con JMeter...'
+                sh '/opt/jmeter/bin/jmeter -n -t test/jmeter/flask.jmx -f -l test/jmeter/flask.jtl'
+                perfReport sourceDataFiles: 'test/jmeter/flask.jtl'
+            }
+        }
+    }
+    post {
+        always {
+            node('tester') {
+                sh 'whoami && hostname && echo ${WORKSPACE}'
+                junit 'result-*.xml'
+                echo 'Pipeline completado con éxito'
+                cleanWs()
+            }
+        }
+        failure {
+            echo 'Pipeline fallido'
         }
     }
 }
